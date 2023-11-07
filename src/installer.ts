@@ -42,15 +42,6 @@ export async function getProtoc(
   includePreReleases: boolean,
   repoToken: string
 ) {
-  // resolve the version number
-  const targetVersion = await computeVersion(
-    version,
-    includePreReleases,
-    repoToken
-  );
-  if (targetVersion) {
-    version = targetVersion;
-  }
   process.stdout.write("Getting protoc version: " + version + os.EOL);
 
   // look if the binary is cached
@@ -65,7 +56,7 @@ export async function getProtoc(
 
   // expose outputs
   core.setOutput("path", toolPath);
-  core.setOutput("version", targetVersion);
+  core.setOutput("version", version);
 
   // add the bin folder to the PATH
   core.addPath(path.join(toolPath, "bin"));
@@ -165,40 +156,6 @@ export function getFileName(
   }
 
   return util.format("protoc-%s-linux-%s.zip", version, suffix);
-}
-
-// Retrieve a list of versions scraping tags from the Github API
-async function fetchVersions(
-  includePreReleases: boolean,
-  repoToken: string
-): Promise<string[]> {
-  let rest: restm.RestClient;
-  if (repoToken != "") {
-    rest = new restm.RestClient("setup-protoc", "", [], {
-      headers: { Authorization: "Bearer " + repoToken },
-    });
-  } else {
-    rest = new restm.RestClient("setup-protoc");
-  }
-
-  let tags: IProtocRelease[] = [];
-  for (let pageNum = 1, morePages = true; morePages; pageNum++) {
-    const p = await rest.get<IProtocRelease[]>(
-      "https://api.github.com/repos/protocolbuffers/protobuf/releases?page=" +
-        pageNum
-    );
-    const nextPage: IProtocRelease[] = p.result || [];
-    if (nextPage.length > 0) {
-      tags = tags.concat(nextPage);
-    } else {
-      morePages = false;
-    }
-  }
-
-  return tags
-    .filter((tag) => tag.tag_name.match(/v\d+\.[\w.]+/g))
-    .filter((tag) => includePrerelease(tag.prerelease, includePreReleases))
-    .map((tag) => tag.tag_name.replace("v", ""));
 }
 
 // Compute an actual version starting from the `version` configuration param.
